@@ -26,6 +26,6 @@ void Sensor::render()
 {
 	double b = 1 / (-2 - this->value) + 1;
 	Display::Draw::colour(0.25+b, 0.25+b, 0.5+b);
-	Display::Draw::dot(this->pos, 8);
+	Display::Draw::dot(this->pos, 8+value);
 }
 

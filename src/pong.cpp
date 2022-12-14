@@ -48,7 +48,7 @@ double Pong::shock_nve()
 
 double Pong::shock_pve()
 {
-	double v = ((at % 32) == 0) ? 4 : 0;
+	double v = ((at % 16) == 0) ? 4 : 0;
 
 	return v;
 }
@@ -64,27 +64,27 @@ void Pong::update_game()
 
 	if(ball_p.x > 160 && std::abs(ball_p.y - paddle_r_p) < 16)
 	{
+		left = 128;
 		ball_v.x = -1;
 		state = 2;
-		left = 128;
 	}
 	
 	if(ball_p.x < -160 && std::abs(ball_p.y - paddle_l_p) < 16)
 	{
+		left = 128;
 		ball_v.x = 1;
 		state = 2;
-		left = 128;
 	}
 
 	else if(ball_p.x > 192 || ball_p.x < -192)
 	{
-		left = 256;
 		ball_p = Vector(0, 0);
 		ball_v = Vector(Random::num() < 0.5 ? -1 : 1, Random::num() < 0.5 ? -0.5 : 0.5);
 		paddle_l_v = 0;
 		paddle_r_v = 0;
 		paddle_l_p = 0;
 		paddle_r_p = 0;
+		left = 256;
 		state = 1;
 		return;
 	}
@@ -158,9 +158,7 @@ void Pong::update_nve()
 		s.set(shock_nve());
 	}
 
-	left -= 1;
-
-	if(left == 0)
+	if(--left == 0)
 	{
 		state = 0;
 	}
@@ -173,9 +171,7 @@ void Pong::update_pve()
 		s.set(shock_pve());
 	}
 
-	left -= 1;
-
-	if(left == 0)
+	if(--left == 0)
 	{
 		state = 0;
 	}
@@ -183,6 +179,11 @@ void Pong::update_pve()
 
 void Pong::update()
 {
+	for(Sensor& s : s_rewards)
+	{
+		s.set(0);
+	}
+
 	switch(state)
 	{
 		case 0:
