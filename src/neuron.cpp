@@ -135,7 +135,6 @@ void Neuron::update()
 	// move away from other nearby cell nuceli
 	Brain::Found found;
 	this->host->find(found, this->pos, 16);
-
 	for(auto& item : found)
 	{
 		auto& n = item.neuron;
@@ -146,6 +145,17 @@ void Neuron::update()
 			vel += (pos - n->pos) / d;
 		}
 	}
+
+	// move away from walls
+	double box_rad = host->box_radius;
+	if(pos.x > box_rad && vel.x > 0) {vel.x *= -1; pos.x = box_rad;}
+	if(pos.y > box_rad && vel.y > 0) {vel.y *= -1; pos.y = box_rad;}
+	if(pos.x < -box_rad && vel.x < 0) {vel.x *= -1; pos.x = -box_rad;}
+	if(pos.y < -box_rad && vel.y < 0) {vel.y *= -1; pos.y = -box_rad;}
+	if(pos_out.x > box_rad && vel_out.x > 0) {vel_out.x *= -1; pos_out.x = box_rad;}
+	if(pos_out.y > box_rad && vel_out.y > 0) {vel_out.y *= -1; pos_out.y = box_rad;}
+	if(pos_out.x < -box_rad && vel_out.x < 0) {vel_out.x *= -1; pos_out.x = -box_rad;}
+	if(pos_out.y < -box_rad && vel_out.y < 0) {vel_out.y *= -1; pos_out.y = -box_rad;}
 
 	for(auto it = s_in.begin(); it != s_in.end();)
 	{

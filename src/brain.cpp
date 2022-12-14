@@ -18,7 +18,7 @@ static long hash(Vector p)
 	return *(long*)&pos;
 }
 
-Brain::Brain()
+Brain::Brain(double box_radius) : box_radius(box_radius)
 {
 	add(std::shared_ptr<Neuron>(new Neuron(this)));
 }
@@ -136,6 +136,12 @@ void Brain::render()
 	{
 		m->render();
 	}
+
+	Display::Draw::colour(1, 1, 1);
+	Display::Draw::line(Vector(-box_radius, -box_radius), Vector(-box_radius, box_radius));
+	Display::Draw::line(Vector(-box_radius, -box_radius), Vector(box_radius, -box_radius));
+	Display::Draw::line(Vector(box_radius, box_radius), Vector(-box_radius, box_radius));
+	Display::Draw::line(Vector(box_radius, box_radius), Vector(box_radius, -box_radius));
 }
 
 void Brain::find(Found& found, Vector pos, double radius)

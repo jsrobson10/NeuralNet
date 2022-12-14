@@ -28,8 +28,9 @@ public:
 	};
 	
 	typedef std::list<FoundItem> Found;
+	double box_radius;
 
-	Brain();
+	Brain(double box_radius);
 	void find(Found& found, Vector pos, double radius);
 	void add(std::shared_ptr<Neuron> n);
 	void reg_sensor(Sensor* sensor);

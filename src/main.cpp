@@ -10,7 +10,7 @@
 
 int main(int argc, char** argv)
 {
-	Brain brain;
+	Brain brain(256);
 	Time::Tracker timer;
 	Display::init();
 	Pong game(brain);
