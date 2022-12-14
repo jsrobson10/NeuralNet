@@ -16,3 +16,15 @@ void Time::sleep(unsigned long us)
 	usleep(us);
 }
 
+Time::Tracker::Tracker() noexcept
+{
+	at = get_us();
+}
+
+void Time::Tracker::sleep_next(unsigned long us)
+{
+	at += us;
+	long diff = at - get_us();
+	if(diff > 0) sleep(diff);
+}
+

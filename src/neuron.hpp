@@ -14,27 +14,38 @@ class Neuron
 {
 private:
 
-	Brain* host;
-	unsigned char state = 0;
-	double duration_avg = 0;
-	double duration_last = 0;
-	double score = 0;
+	struct SynapseItem
+	{
+		SynapseItem(std::shared_ptr<Synapse> synapse, std::weak_ptr<Neuron> neuron) : synapse(synapse), neuron(neuron) {};
+		
+		std::shared_ptr<Synapse> synapse;
+		std::weak_ptr<Neuron> neuron;
+	};
 
-	std::list<std::shared_ptr<Synapse>> s_in;
-	std::list<std::shared_ptr<Synapse>> s_out;
+	Brain* host;
+	unsigned char state;
+	double d_length;
+	int time;
+	int time_last;
+	int diff_last;
 	
-	Vector vel_in;
+	Vector vel;
 	Vector vel_out;
+	std::list<SynapseItem> s_in;
+	std::list<SynapseItem> s_out;
+
+	void create_synapse();
+	void on_active();
+	void split();
 
 public:
 	
-	int repeats = 8;
-	double life = 64;
-	double voltage = -0.5;
-	std::weak_ptr<Neuron> self;
+	int repeats;
+	double voltage;
 
-	Vector pos_in;
+	Vector pos;
 	Vector pos_out;
+	std::weak_ptr<Neuron> self;
 	
 	Neuron(Brain* host);
 	Neuron(Brain* host, Neuron* parent);

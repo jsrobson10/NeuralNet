@@ -10,10 +10,12 @@ class Sensor
 private:
 
 	double value;
-	Vector pos;
 	
 public:
 
+	Vector pos;
+
+	Sensor();
 	Sensor(Vector pos);
 	double get(Vector pos);
 	void set(double value);

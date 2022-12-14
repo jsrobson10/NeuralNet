@@ -11,17 +11,19 @@ class Synapse
 {
 private:
 
-	double m;
-	double v;
+	double mul;
+	double voltage;
+	int time;
+	int time_last;
+	int diff_last;
 
 public:
 
-	std::weak_ptr<Neuron> in;
-	std::weak_ptr<Neuron> out;
-
-	Synapse(std::weak_ptr<Neuron> in, std::weak_ptr<Neuron> out);
-	void add(double v);
-	void modify(double m);
-	double get();
+	Synapse() noexcept;
+	bool alive;
+	void update(double v) noexcept;
+	void modify(double m) noexcept;
+	double length() noexcept;
+	double swap();
 };
 

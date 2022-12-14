@@ -10,10 +10,12 @@ class Motor
 private:
 
 	double value;
-	Vector pos;
 	
 public:
+	
+	Vector pos;
 
+	Motor();
 	Motor(Vector pos);
 	void reset();
 	void add(Vector pos, double value);

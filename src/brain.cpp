@@ -1,29 +1,47 @@
 
 #include "brain.hpp"
 #include "random.hpp"
+#include "display.hpp"
 
 #include <iostream>
+#include <cmath>
+
+static long hash_int_m16(int x, int y)
+{
+	int pos[] = {x / 16, y / 16};
+	return *(long*)&pos;
+}
+
+static long hash(Vector p)
+{
+	int pos[] = {(int)std::floor(p.x / 16), (int)std::floor(p.y / 16)};
+	return *(long*)&pos;
+}
 
 Brain::Brain()
 {
-	neurons.push_back(std::shared_ptr<Neuron>(new Neuron(this)));
+	add(std::shared_ptr<Neuron>(new Neuron(this)));
 }
 
 void Brain::add(std::shared_ptr<Neuron> n)
 {
 	n->self = n;
-	neurons.push_back(n);
+	long key = hash(n->pos);
+	neurons[key].push_back(n);
 }
 
 void Brain::update()
 {
-	for(auto& n : neurons)
+	for(auto& box : neurons)
 	{
-		n->absorb();
-
-		for(auto s : sensors)
+		for(auto& n : box.second)
 		{
-			n->voltage += s->get(n->pos_in);
+			n->absorb();
+
+			for(auto s : sensors)
+			{
+				n->voltage += s->get(n->pos);
+			}
 		}
 	}
 
@@ -32,43 +50,60 @@ void Brain::update()
 		m->reset();
 	}
 
-	std::shared_ptr<Neuron> max_n;
-	double max_v = 0;
-
-	for(auto it = neurons.begin(); it != neurons.end();)
+	for(auto& box : neurons)
 	{
-		auto& n = *it;
-
-		n->update();
-
-		if(n->voltage > 0)
+		for(auto it = box.second.begin(); it != box.second.end();)
 		{
-			for(auto m : motors)
-			{
-				m->add(n->pos_out, n->voltage);
-			}
-		}
+			auto& n = *it;
 
-		if(n->alive())
-		{
-			if(n->life > max_v && n->voltage > 0)
+			n->update();
+
+			if(n->voltage > 0)
 			{
-				max_n = n;
-				max_v = n->life;
+				for(auto m : motors)
+				{
+					m->add(n->pos_out, n->voltage);
+				}
 			}
 
-			it++;
-		}
-		
-		else
-		{
-			it = neurons.erase(it);
+			if(n->alive())
+			{
+				it++;
+			}
+			
+			else
+			{
+				it = box.second.erase(it);
+			}
 		}
 	}
 
-	if(Random::num() < 0.01 && max_n)
+	// update all neurons to make sure they're in the right place
+
+	std::list<std::shared_ptr<Neuron>> to_add;
+
+	for(auto a = neurons.begin(); a != neurons.end(); a++)
 	{
-		max_n->repeats += 1;
+		long key = a->first;
+		
+		for(auto b = a->second.begin(); b != a->second.end();)
+		{
+			if(hash((*b)->pos) != key)
+			{
+				to_add.push_back(*b);
+				b = a->second.erase(b);
+			}
+
+			else
+			{
+				b++;
+			}
+		}
+	}
+
+	for(auto& n : to_add)
+	{
+		add(n);
 	}
 }
 
@@ -84,9 +119,12 @@ void Brain::reg_motor(Motor* motor)
 
 void Brain::render()
 {
-	for(auto n : neurons)
+	for(auto& box : neurons)
 	{
-		n->render();
+		for(auto& n : box.second)
+		{
+			n->render();
+		}
 	}
 	
 	for(auto s : sensors)
@@ -97,6 +135,34 @@ void Brain::render()
 	for(auto& m : motors)
 	{
 		m->render();
+	}
+}
+
+void Brain::find(Found& found, Vector pos, double radius)
+{
+	int x_s = std::floor((pos.x - radius) / 16) * 16;
+	int y_s = std::floor((pos.y - radius) / 16) * 16;
+
+	for(int x = x_s; x <= pos.x + radius; x += 16)
+	{
+		for(int y = y_s; y <= pos.y + radius; y += 16)
+		{
+			long h = hash_int_m16(x, y);
+			auto& l = neurons[h];
+
+			for(auto& n : l)
+			{
+				double d = (pos - n->pos).length();
+
+				if(d < radius)
+				{
+					FoundItem item;
+					item.neuron = n;
+					item.distance = d;
+					found.push_back(item);
+				}
+			}
+		}
 	}
 }
 

@@ -16,6 +16,7 @@ public:
 	Vector rotate(double r) noexcept;
 	Vector normalize();
 	double length() noexcept;
+	double length2() noexcept;
 	
 	Vector operator+(const Vector& o) noexcept;
 	Vector operator-(const Vector& o) noexcept;

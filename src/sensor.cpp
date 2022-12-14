@@ -2,6 +2,11 @@
 #include "sensor.hpp"
 #include "display.hpp"
 
+Sensor::Sensor()
+{
+
+}
+
 Sensor::Sensor(Vector pos)
 {
 	this->pos = pos;

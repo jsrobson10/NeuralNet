@@ -2,6 +2,11 @@
 #include "motor.hpp"
 #include "display.hpp"
 
+Motor::Motor()
+{
+
+}
+
 Motor::Motor(Vector pos)
 {
 	this->pos = pos;

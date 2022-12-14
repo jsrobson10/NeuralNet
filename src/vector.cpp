@@ -33,6 +33,11 @@ Vector& Vector::operator*=(double o) noexcept { this->x *= o; this->y *= o; retu
 Vector& Vector::operator/=(double o) { this->x /= o; this->y /= o; return *this; }
 std::ostream& operator<<(std::ostream& o, const Vector& v) { return o << "Vector(" << v.x << ", " << v.y << ")"; }
 
+double Vector::length2() noexcept
+{
+	return this->x * this->x + this->y * this->y;
+}
+
 double Vector::length() noexcept
 {
 	return std::sqrt(this->x * this->x + this->y * this->y);
