@@ -10,17 +10,17 @@
 
 int main(int argc, char** argv)
 {
-	Brain brain(256);
+	Brain brain;
 	Time::Tracker timer;
 	Display::init();
-	Pong game(brain);
+//	Pong game(brain);
 
 	while(!Display::shouldClose())
 	{
-		game.update();
+//		game.update();
 		brain.update();
 		Display::update(&brain);
-//		timer.sleep_next(10000);
+		timer.sleep_next(10000);
 	}
 
 	Display::cleanup();

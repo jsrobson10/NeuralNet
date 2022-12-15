@@ -5,6 +5,7 @@
 #include "neuron.hpp"
 #include "display.hpp"
 #include "random.hpp"
+#include "food.hpp"
 
 constexpr double calc_mul(double m)
 {
@@ -12,8 +13,8 @@ constexpr double calc_mul(double m)
 }
 
 const double VOLTAGE_MUL = calc_mul(4);
-const double DRAG_MUL = calc_mul(16);
-const double LIFE_MUL = calc_mul(4);
+const double DRAG_MUL = Entity::M_DRAG;
+const double LIFE_MUL = calc_mul(4096);
 
 const double SETPOINTS[] = {-0.5, 4, -0.5, 4, -2, -2};
 const double THRESHOLDS[] = {-0.25, 2, -0.75};
@@ -25,12 +26,12 @@ Neuron::Neuron(Brain* host)
 	this->pos = Random::vector() * (Random::num() * 0.5 + 0.5) * 4;
 	this->pos_out = Random::vector() * (Random::num() * 0.5 + 0.5) * 4;
 	this->d_length = Random::num() * 56 + 8;
-	this->repeats = 10;
 	this->voltage = -0.5;
 	this->state = 0;
 	this->time = 0;
 	this->time_last = 0;
 	this->diff_last = 0;
+	this->life = 2;
 }
 
 Neuron::Neuron(Brain* host, Neuron* parent) : Neuron(host)
@@ -39,13 +40,13 @@ Neuron::Neuron(Brain* host, Neuron* parent) : Neuron(host)
 	this->pos_out += parent->pos;
 	this->vel += parent->vel;
 	this->vel_out += parent->vel;
-	this->repeats = parent->repeats;
+	this->life = parent->life / 2;
 }
 
 void Neuron::create_synapse()
 {
-	Brain::Found found;
-	this->host->find(found, this->pos_out, 16);
+	Brain::Found<Neuron>::Type found;
+	this->host->find<Neuron>(found, this->pos_out, 16);
 	int at = (int)(Random::num() * (found.size() - 1));
 	auto it = found.begin();
 
@@ -54,13 +55,13 @@ void Neuron::create_synapse()
 		it++;
 	}
 
-	if(it != found.end() && it->neuron.get() != this)
+	if(it != found.end() && it->entity.get() != this)
 	{
 		bool found = false;
 
 		for(auto& item : s_in)
 		{
-			if(item.neuron.lock() == it->neuron)
+			if(item.neuron.lock() == it->entity)
 			{
 				found = true;
 				break;
@@ -71,7 +72,7 @@ void Neuron::create_synapse()
 		{
 			for(auto& item : s_out)
 			{
-				if(item.neuron.lock() == it->neuron)
+				if(item.neuron.lock() == it->entity)
 				{
 					found = true;
 					break;
@@ -82,8 +83,8 @@ void Neuron::create_synapse()
 		if(!found)
 		{
 			std::shared_ptr<Synapse> synapse(new Synapse);
-			s_out.push_back(SynapseItem(synapse, it->neuron->self));
-			it->neuron->s_in.push_back(SynapseItem(synapse, self));
+			s_out.push_back(SynapseItem(synapse, std::static_pointer_cast<Neuron, Entity>(it->entity->self.lock())));
+			it->entity->s_in.push_back(SynapseItem(synapse, std::static_pointer_cast<Neuron, Entity>(self.lock())));
 		}
 	}
 }
@@ -109,54 +110,69 @@ void Neuron::on_active()
 
 void Neuron::split()
 {
-	this->repeats -= 1;
 	std::shared_ptr<Neuron> n1(new Neuron(this->host, this));
 	this->host->add(n1);
+	this->life /= 2;
 }
 
-void Neuron::update()
+void Neuron::update_entities()
 {
-	int state = this->state;
-	int off = state + (this->voltage > THRESHOLDS[state] ? 3 : 0);
-	double set = SETPOINTS[off];
-
-	this->state = STATES[off];
-	this->voltage = (this->voltage - set) * VOLTAGE_MUL + set;
-	this->pos += this->vel;
-	this->pos_out += this->vel_out;
-	this->vel *= DRAG_MUL;
-	this->vel_out *= DRAG_MUL;
-
-	if(this->repeats > 0 && Random::num() < this->repeats / 1024.0)
-	{
-		split();
-	}
-
-	// move away from other nearby cell nuceli
-	Brain::Found found;
-	this->host->find(found, this->pos, 16);
+	int density = 0;
+	Brain::Found<Entity>::Type found;
+	this->host->find<Entity>(found, pos, 16);
 	for(auto& item : found)
 	{
-		auto& n = item.neuron;
-		double d = item.distance * item.distance;
+		Neuron* item_neuron = dynamic_cast<Neuron*>(item.entity.get());
 
-		if(d)
+		if(item_neuron && item_neuron != this)
 		{
-			vel += (pos - n->pos) / d;
+			// move away from other nearby cell nuceli
+			double d = item.distance * item.distance;
+			density += 1;
+
+			if(d && item.distance < 8)
+			{
+				vel += (pos - item_neuron->pos) / d * 0.25;
+			}
+
+			continue;
+		}
+
+		Food* item_food = dynamic_cast<Food*>(item.entity.get());
+
+		if(item_food)
+		{
+			if(item.distance < 4)
+			{
+				// very close; eat
+				item_food->eat();
+				life += 1;
+			}
+
+			else
+			{
+				// move the food closer to me
+				auto& n = item.entity;
+				double d = item.distance * item.distance;
+
+				if(d)
+				{
+					item_food->vel += (pos - item_food->pos) / d;
+				}
+			}
+
+			continue;
 		}
 	}
 
-	// move away from walls
-	double box_rad = host->box_radius;
-	if(pos.x > box_rad && vel.x > 0) {vel.x *= -1; pos.x = box_rad;}
-	if(pos.y > box_rad && vel.y > 0) {vel.y *= -1; pos.y = box_rad;}
-	if(pos.x < -box_rad && vel.x < 0) {vel.x *= -1; pos.x = -box_rad;}
-	if(pos.y < -box_rad && vel.y < 0) {vel.y *= -1; pos.y = -box_rad;}
-	if(pos_out.x > box_rad && vel_out.x > 0) {vel_out.x *= -1; pos_out.x = box_rad;}
-	if(pos_out.y > box_rad && vel_out.y > 0) {vel_out.y *= -1; pos_out.y = box_rad;}
-	if(pos_out.x < -box_rad && vel_out.x < 0) {vel_out.x *= -1; pos_out.x = -box_rad;}
-	if(pos_out.y < -box_rad && vel_out.y < 0) {vel_out.y *= -1; pos_out.y = -box_rad;}
+	if(life > 4 && density < 2)
+	{
+		split();
+	}
+}
 
+void Neuron::update_synapse()
+{
 	for(auto it = s_in.begin(); it != s_in.end();)
 	{
 		if(!it->neuron.expired() && it->synapse->alive)
@@ -190,6 +206,39 @@ void Neuron::update()
 			it = s_out.erase(it);
 		}
 	}
+}
+
+void Neuron::update2()
+{
+	int off = state + (this->voltage > THRESHOLDS[state] ? 3 : 0);
+	double set = SETPOINTS[off];
+	
+	this->voltage = (this->voltage + 0.5) * VOLTAGE_MUL - 0.5;
+	this->state = STATES[off];
+	this->pos += this->vel;
+	this->pos_out += this->vel_out;
+	this->vel *= DRAG_MUL;
+	this->vel_out *= DRAG_MUL;
+	this->life *= LIFE_MUL;
+
+	/*if(this->repeats > 0 && Random::num() < this->repeats / 1024.0)
+	{
+		split();
+	}*/
+
+	update_entities();
+	update_synapse();
+
+	// move away from walls
+//	double box_rad = host->box_radius;
+//	if(pos.x > box_rad && vel.x > 0) {vel.x *= -1; pos.x = box_rad;}
+//	if(pos.y > box_rad && vel.y > 0) {vel.y *= -1; pos.y = box_rad;}
+//	if(pos.x < -box_rad && vel.x < 0) {vel.x *= -1; pos.x = -box_rad;}
+//	if(pos.y < -box_rad && vel.y < 0) {vel.y *= -1; pos.y = -box_rad;}
+//	if(pos_out.x > box_rad && vel_out.x > 0) {vel_out.x *= -1; pos_out.x = box_rad;}
+//	if(pos_out.y > box_rad && vel_out.y > 0) {vel_out.y *= -1; pos_out.y = box_rad;}
+//	if(pos_out.x < -box_rad && vel_out.x < 0) {vel_out.x *= -1; pos_out.x = -box_rad;}
+//	if(pos_out.y < -box_rad && vel_out.y < 0) {vel_out.y *= -1; pos_out.y = -box_rad;}
 
 	// manage dendrite length
 	Vector diff = pos_out - pos;
@@ -205,7 +254,7 @@ void Neuron::update()
 	}
 }
 
-void Neuron::absorb()
+void Neuron::update1()
 {
 	double v = 0;
 
@@ -257,6 +306,6 @@ void Neuron::render()
 
 bool Neuron::alive()
 {
-	return true;
+	return life > 1;
 }
 

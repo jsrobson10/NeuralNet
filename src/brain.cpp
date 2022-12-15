@@ -2,9 +2,14 @@
 #include "brain.hpp"
 #include "random.hpp"
 #include "display.hpp"
+#include "entity.hpp"
+#include "neuron.hpp"
+#include "food.hpp"
 
 #include <iostream>
 #include <cmath>
+
+Brain* Brain::Current = nullptr;
 
 static long hash_int_m16(int x, int y)
 {
@@ -20,51 +25,43 @@ static long hash(Vector p)
 
 Brain::Brain(double box_radius) : box_radius(box_radius)
 {
-	add(std::shared_ptr<Neuron>(new Neuron(this)));
+	add(std::make_shared<Neuron>(this));
 }
 
-void Brain::add(std::shared_ptr<Neuron> n)
+Brain::Brain() : Brain(0)
 {
-	n->self = n;
-	long key = hash(n->pos);
-	neurons[key].push_back(n);
+
+}
+
+void Brain::add(std::shared_ptr<Entity> e)
+{
+	e->self = e;
+	long key = hash(e->pos);
+	entities[key].push_back(e);
 }
 
 void Brain::update()
 {
-	for(auto& box : neurons)
+	//std::cout << "entity\t" << entity->pos << "\t" << entity->voltage << std::endl;
+	
+	//add some food
+	add(std::make_shared<Food>());
+
+	for(auto& box : entities)
 	{
 		for(auto& n : box.second)
 		{
-			n->absorb();
-
-			for(auto s : sensors)
-			{
-				n->voltage += s->get(n->pos);
-			}
+			n->update1();
 		}
 	}
 
-	for(auto m : motors)
-	{
-		m->reset();
-	}
-
-	for(auto& box : neurons)
+	for(auto& box : entities)
 	{
 		for(auto it = box.second.begin(); it != box.second.end();)
 		{
 			auto& n = *it;
 
-			n->update();
-
-			if(n->voltage > 0)
-			{
-				for(auto m : motors)
-				{
-					m->add(n->pos_out, n->voltage);
-				}
-			}
+			n->update2();
 
 			if(n->alive())
 			{
@@ -78,11 +75,11 @@ void Brain::update()
 		}
 	}
 
-	// update all neurons to make sure they're in the right place
+	// update all entities to make sure they're in the right place
 
-	std::list<std::shared_ptr<Neuron>> to_add;
+	std::list<std::shared_ptr<Entity>> to_add;
 
-	for(auto a = neurons.begin(); a != neurons.end(); a++)
+	for(auto a = entities.begin(); a != entities.end(); a++)
 	{
 		long key = a->first;
 		
@@ -107,68 +104,21 @@ void Brain::update()
 	}
 }
 
-void Brain::reg_sensor(Sensor* sensor)
-{
-	sensors.push_back(sensor);
-}
-
-void Brain::reg_motor(Motor* motor)
-{
-	motors.push_back(motor);
-}
-
 void Brain::render()
 {
-	for(auto& box : neurons)
+	for(auto& box : entities)
 	{
 		for(auto& n : box.second)
 		{
 			n->render();
 		}
 	}
-	
-	for(auto s : sensors)
-	{
-		s->render();
-	}
 
-	for(auto& m : motors)
-	{
-		m->render();
-	}
-
-	Display::Draw::colour(1, 1, 1);
-	Display::Draw::line(Vector(-box_radius, -box_radius), Vector(-box_radius, box_radius));
-	Display::Draw::line(Vector(-box_radius, -box_radius), Vector(box_radius, -box_radius));
-	Display::Draw::line(Vector(box_radius, box_radius), Vector(-box_radius, box_radius));
-	Display::Draw::line(Vector(box_radius, box_radius), Vector(box_radius, -box_radius));
+//	Display::Draw::colour(1, 1, 1);
+//	Display::Draw::line(Vector(-box_radius, -box_radius), Vector(-box_radius, box_radius));
+//	Display::Draw::line(Vector(-box_radius, -box_radius), Vector(box_radius, -box_radius));
+//	Display::Draw::line(Vector(box_radius, box_radius), Vector(-box_radius, box_radius));
+//	Display::Draw::line(Vector(box_radius, box_radius), Vector(box_radius, -box_radius));
 }
 
-void Brain::find(Found& found, Vector pos, double radius)
-{
-	int x_s = std::floor((pos.x - radius) / 16) * 16;
-	int y_s = std::floor((pos.y - radius) / 16) * 16;
-
-	for(int x = x_s; x <= pos.x + radius; x += 16)
-	{
-		for(int y = y_s; y <= pos.y + radius; y += 16)
-		{
-			long h = hash_int_m16(x, y);
-			auto& l = neurons[h];
-
-			for(auto& n : l)
-			{
-				double d = (pos - n->pos).length();
-
-				if(d < radius)
-				{
-					FoundItem item;
-					item.neuron = n;
-					item.distance = d;
-					found.push_back(item);
-				}
-			}
-		}
-	}
-}
 

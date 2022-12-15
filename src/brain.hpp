@@ -3,39 +3,78 @@
 
 class Brain;
 
-#include "neuron.hpp"
+#include "entity.hpp"
 #include "sensor.hpp"
 #include "motor.hpp"
 
 #include <list>
 #include <memory>
 #include <unordered_map>
+#include <cmath>
 
 class Brain
 {
 private:
 
-	std::unordered_map<long, std::list<std::shared_ptr<Neuron>>> neurons;
-	std::list<Sensor*> sensors;
-	std::list<Motor*> motors;
+	std::unordered_map<long, std::list<std::shared_ptr<Entity>>> entities;
 	
 public:
 
-	struct FoundItem
-	{
-		std::shared_ptr<Neuron> neuron;
-		double distance;
-	};
+	static Brain* Current;
 	
-	typedef std::list<FoundItem> Found;
+	template <class T>
+	struct Found
+	{
+		struct Item
+		{
+			std::shared_ptr<T> entity;
+			double distance;
+		};
+
+		typedef std::list<Item> Type;
+	};
+
 	double box_radius;
 
+	Brain();
 	Brain(double box_radius);
-	void find(Found& found, Vector pos, double radius);
-	void add(std::shared_ptr<Neuron> n);
-	void reg_sensor(Sensor* sensor);
-	void reg_motor(Motor* motor);
+	void add(std::shared_ptr<Entity> e);
 	void update();
 	void render();
+
+	template <class T>
+	void find(typename Found<T>::Type& found, Vector pos, double radius)
+	{
+		int x_s = std::floor((pos.x - radius) / 16) * 16;
+		int y_s = std::floor((pos.y - radius) / 16) * 16;
+	
+		for(int x = x_s; x <= pos.x + radius; x += 16)
+		{
+			for(int y = y_s; y <= pos.y + radius; y += 16)
+			{
+				int at[] = {x / 16, y / 16};
+				long h = *(long*)at;
+				auto& l = entities[h];
+	
+				for(auto& e : l)
+				{
+					typename Found<T>::Item item;
+					item.entity = std::dynamic_pointer_cast<T, Entity>(e);
+
+					if(!item.entity)
+					{
+						continue;
+					}
+
+					item.distance = (pos - e->pos).length();
+
+					if(item.distance < radius)
+					{
+						found.push_back(item);
+					}
+				}
+			}
+		}
+	}
 };
 

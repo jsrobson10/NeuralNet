@@ -6,11 +6,12 @@ class Neuron;
 #include "vector.hpp"
 #include "brain.hpp"
 #include "synapse.hpp"
+#include "entity.hpp"
 
 #include <memory>
 #include <list>
 
-class Neuron
+class Neuron : public Entity
 {
 private:
 
@@ -25,6 +26,7 @@ private:
 	Brain* host;
 	unsigned char state;
 	double d_length;
+	double life;
 	int time;
 	int time_last;
 	int diff_last;
@@ -34,23 +36,24 @@ private:
 	std::list<SynapseItem> s_in;
 	std::list<SynapseItem> s_out;
 
+	void update_entities();
+	void update_synapse();
 	void create_synapse();
 	void on_active();
 	void split();
 
 public:
 	
-	int repeats;
 	double voltage;
+	double food;
 
-	Vector pos;
 	Vector pos_out;
-	std::weak_ptr<Neuron> self;
 	
 	Neuron(Brain* host);
 	Neuron(Brain* host, Neuron* parent);
-	void update();
-	void absorb();
+
+	void update1();
+	void update2();
 	void render();
 	bool alive();
 };

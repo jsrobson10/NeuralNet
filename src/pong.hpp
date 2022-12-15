@@ -12,12 +12,12 @@ class Pong
 private:
 	
 	Brain* brain;
-	Sensor s_paddle_l;
-	Sensor s_paddle_r;
-	Sensor s_ball;
-	std::array<Sensor, 8> s_rewards;
-	std::array<Motor, 2> m_paddle_l;
-	std::array<Motor, 2> m_paddle_r;
+	std::shared_ptr<Sensor> s_paddle_l;
+	std::shared_ptr<Sensor> s_paddle_r;
+	std::shared_ptr<Sensor> s_ball;
+	std::array<std::shared_ptr<Sensor>, 8> s_rewards;
+	std::array<std::shared_ptr<Motor>, 2> m_paddle_l;
+	std::array<std::shared_ptr<Motor>, 2> m_paddle_r;
 	double paddle_l_p;
 	double paddle_r_p;
 	double paddle_l_v;

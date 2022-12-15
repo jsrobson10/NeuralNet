@@ -4,16 +4,15 @@
 class Sensor;
 
 #include "vector.hpp"
+#include "entity.hpp"
 
-class Sensor
+class Sensor : public Entity
 {
 private:
 
 	double value;
 	
 public:
-
-	Vector pos;
 
 	Sensor();
 	Sensor(Vector pos);

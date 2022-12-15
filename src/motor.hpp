@@ -4,8 +4,9 @@
 class Motor;
 
 #include "vector.hpp"
+#include "entity.hpp"
 
-class Motor
+class Motor : public Entity
 {
 private:
 
@@ -13,8 +14,6 @@ private:
 	
 public:
 	
-	Vector pos;
-
 	Motor();
 	Motor(Vector pos);
 	void reset();
