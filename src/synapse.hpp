@@ -1,12 +1,6 @@
 
 #pragma once
 
-class Synapse;
-
-#include "neuron.hpp"
-
-#include <memory>
-
 class Synapse
 {
 private:

@@ -43,10 +43,10 @@ Neuron::Neuron(Brain* host, Neuron* parent) : Neuron(host)
 	this->life = parent->life / 2;
 }
 
-void Neuron::create_synapse()
+void Neuron::create_synapse_next()
 {
-	Brain::Found<Neuron>::Type found;
-	this->host->find<Neuron>(found, this->pos_out, 16);
+	Brain::Found<Taker>::Type found;
+	this->host->find<Taker>(found, this->pos_out, 16);
 	int at = (int)(Random::num() * (found.size() - 1));
 	auto it = found.begin();
 
@@ -59,9 +59,9 @@ void Neuron::create_synapse()
 	{
 		bool found = false;
 
-		for(auto& item : s_in)
+		for(auto& item : s_taker)
 		{
-			if(item.neuron.lock() == it->entity)
+			if(item.taker.lock() == it->entity)
 			{
 				found = true;
 				break;
@@ -70,9 +70,9 @@ void Neuron::create_synapse()
 
 		if(!found)
 		{
-			for(auto& item : s_out)
+			for(auto& item : s_taker)
 			{
-				if(item.neuron.lock() == it->entity)
+				if(item.taker.lock() == it->entity)
 				{
 					found = true;
 					break;
@@ -83,9 +83,68 @@ void Neuron::create_synapse()
 		if(!found)
 		{
 			std::shared_ptr<Synapse> synapse(new Synapse);
-			s_out.push_back(SynapseItem(synapse, std::static_pointer_cast<Neuron, Entity>(it->entity->self.lock())));
-			it->entity->s_in.push_back(SynapseItem(synapse, std::static_pointer_cast<Neuron, Entity>(self.lock())));
+			it->entity->reg_giver(synapse, get_giver_self());
+			reg_taker(synapse, it->entity);
 		}
+	}
+}
+
+void Neuron::create_synapse_back()
+{
+	Brain::Found<Giver>::Type found;
+	this->host->find<Giver>(found, this->pos, 16);
+	int at = (int)(Random::num() * (found.size() - 1));
+	auto it = found.begin();
+
+	for(int i = 0; i < at; i++)
+	{
+		it++;
+	}
+
+	if(it != found.end() && it->entity.get() != this)
+	{
+		bool found = false;
+
+		for(auto& item : s_giver)
+		{
+			if(item.giver.lock() == it->entity)
+			{
+				found = true;
+				break;
+			}
+		}
+
+		if(!found)
+		{
+			for(auto& item : s_giver)
+			{
+				if(item.giver.lock() == it->entity)
+				{
+					found = true;
+					break;
+				}
+			}
+		}
+
+		if(!found)
+		{
+			std::shared_ptr<Synapse> synapse(new Synapse);
+			it->entity->reg_taker(synapse, get_taker_self());
+			reg_giver(synapse, it->entity);
+		}
+	}
+}
+
+void Neuron::create_synapse()
+{
+	if(s_taker.size() < 4)
+	{
+		create_synapse_next();
+	}
+
+	//if(s_giver.size() < 2)
+	{
+		//create_synapse_back();
 	}
 }
 
@@ -95,14 +154,23 @@ void Neuron::on_active()
 	time_last = time;
 	time = 0;
 
-	if(diff <= diff_last && s_out.size() < 4 && Random::num() < 1.0/16.0)
+	if(diff > 0)
 	{
-		create_synapse();
+		if(std::abs(diff - diff_last) < 2)
+		{
+			create_synapse();
+			life += 0.25;
+		}
+
+		else
+		{
+			life -= 0.125;
+		}
 	}
 	
 	diff_last = diff;
 
-	for(auto& s : s_out)
+	for(auto& s : s_taker)
 	{
 		s.synapse->update(this->voltage);
 	}
@@ -173,22 +241,22 @@ void Neuron::update_entities()
 
 void Neuron::update_synapse()
 {
-	for(auto it = s_in.begin(); it != s_in.end();)
+	for(auto it = s_giver.begin(); it != s_giver.end();)
 	{
-		if(!it->neuron.expired() && it->synapse->alive)
+		if(!it->giver.expired() && it->synapse->alive)
 		{
 			it++;
 		}
 
 		else
 		{
-			it = s_in.erase(it);
+			it = s_giver.erase(it);
 		}
 	}
 
-	for(auto it = s_out.begin(); it != s_out.end();)
+	for(auto it = s_taker.begin(); it != s_taker.end();)
 	{
-		std::shared_ptr<Neuron> n = it->neuron.lock();
+		std::shared_ptr<Entity> n = std::dynamic_pointer_cast<Entity>(it->taker.lock());
 		
 		if(n && it->synapse->alive)
 		{
@@ -203,12 +271,12 @@ void Neuron::update_synapse()
 
 		else
 		{
-			it = s_out.erase(it);
+			it = s_taker.erase(it);
 		}
 	}
 }
 
-void Neuron::update2()
+void Neuron::update_out()
 {
 	int off = state + (this->voltage > THRESHOLDS[state] ? 3 : 0);
 	double set = SETPOINTS[off];
@@ -221,24 +289,8 @@ void Neuron::update2()
 	this->vel_out *= DRAG_MUL;
 	this->life *= LIFE_MUL;
 
-	/*if(this->repeats > 0 && Random::num() < this->repeats / 1024.0)
-	{
-		split();
-	}*/
-
 	update_entities();
 	update_synapse();
-
-	// move away from walls
-//	double box_rad = host->box_radius;
-//	if(pos.x > box_rad && vel.x > 0) {vel.x *= -1; pos.x = box_rad;}
-//	if(pos.y > box_rad && vel.y > 0) {vel.y *= -1; pos.y = box_rad;}
-//	if(pos.x < -box_rad && vel.x < 0) {vel.x *= -1; pos.x = -box_rad;}
-//	if(pos.y < -box_rad && vel.y < 0) {vel.y *= -1; pos.y = -box_rad;}
-//	if(pos_out.x > box_rad && vel_out.x > 0) {vel_out.x *= -1; pos_out.x = box_rad;}
-//	if(pos_out.y > box_rad && vel_out.y > 0) {vel_out.y *= -1; pos_out.y = box_rad;}
-//	if(pos_out.x < -box_rad && vel_out.x < 0) {vel_out.x *= -1; pos_out.x = -box_rad;}
-//	if(pos_out.y < -box_rad && vel_out.y < 0) {vel_out.y *= -1; pos_out.y = -box_rad;}
 
 	// manage dendrite length
 	Vector diff = pos_out - pos;
@@ -247,18 +299,29 @@ void Neuron::update2()
 	vel_out -= change;
 	vel += change / 2;
 
+	// too much power
+	if(this->voltage > 8)
+	{
+		//life = 0;
+	}
+
 	// active
 	if(this->voltage > 0)
 	{
 		on_active();
 	}
+
+	else
+	{
+		time += 1;
+	}
 }
 
-void Neuron::update1()
+void Neuron::update_in()
 {
 	double v = 0;
 
-	for(auto& s : s_in)
+	for(auto& s : s_giver)
 	{
 		v += s.synapse->swap();
 	}
@@ -269,11 +332,16 @@ void Neuron::update1()
 	}
 }
 
+void Neuron::give(double val)
+{
+	voltage += val;
+}
+
 void Neuron::render()
 {
-	if(s_out.size() == 0 && s_in.size() == 0)
+	if(s_taker.size() == 0 && s_giver.size() == 0)
 	{
-//		return;
+		//return;
 	}
 	
 	double v = 0;
@@ -290,22 +358,31 @@ void Neuron::render()
 	Display::Draw::dot(this->pos_out, 2+r);
 
 	Display::Draw::colour(0.5+v, 0.5+v, 0.25+v);
-
-	for(auto& s : s_out)
-	{
-		std::shared_ptr<Neuron> n = s.neuron.lock();
-
-		if(n)
-		{
-			Display::Draw::line(this->pos_out, n->pos);
-		}
-	}
-
 	Display::Draw::dot(this->pos, 3+r);
+}
+
+void Neuron::reg_taker(std::shared_ptr<Synapse> synapse, std::weak_ptr<Taker> taker)
+{
+	s_taker.push_back(Taker::Item(synapse, taker));
+}
+
+void Neuron::reg_giver(std::shared_ptr<Synapse> synapse, std::weak_ptr<Giver> giver)
+{
+	s_giver.push_back(Giver::Item(synapse, giver));
 }
 
 bool Neuron::alive()
 {
 	return life > 1;
+}
+
+std::shared_ptr<Giver> Neuron::get_giver_self()
+{
+	return dynamic_pointer_cast<Giver>(self.lock());
+}
+
+std::shared_ptr<Taker> Neuron::get_taker_self()
+{
+	return dynamic_pointer_cast<Taker>(self.lock());
 }
 

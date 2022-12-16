@@ -11,12 +11,6 @@
 
 Brain* Brain::Current = nullptr;
 
-static long hash_int_m16(int x, int y)
-{
-	int pos[] = {x / 16, y / 16};
-	return *(long*)&pos;
-}
-
 static long hash(Vector p)
 {
 	int pos[] = {(int)std::floor(p.x / 16), (int)std::floor(p.y / 16)};
@@ -26,6 +20,7 @@ static long hash(Vector p)
 Brain::Brain(double box_radius) : box_radius(box_radius)
 {
 	add(std::make_shared<Neuron>(this));
+	Current = this;
 }
 
 Brain::Brain() : Brain(0)
@@ -51,7 +46,7 @@ void Brain::update()
 	{
 		for(auto& n : box.second)
 		{
-			n->update1();
+			n->update_in();
 		}
 	}
 
@@ -61,7 +56,7 @@ void Brain::update()
 		{
 			auto& n = *it;
 
-			n->update2();
+			n->update_out();
 
 			if(n->alive())
 			{

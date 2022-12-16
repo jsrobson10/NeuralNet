@@ -1,12 +1,12 @@
 
 #include "synapse.hpp"
 
-#include <iostream>
 #include <cmath>
+#include <iostream>
 
 Synapse::Synapse() noexcept
 {
-	mul = 1.0/64.0;
+	mul = 1.0/16.0;
 	voltage = 0;
 	time = 0;
 	time_last = 0;
@@ -29,7 +29,7 @@ double Synapse::swap()
 	//reduce when overloaded
 	else if(v > 1)
 	{
-		modify(7.0/8.0);
+		modify(3.0/4.0);
 	}
 
 	else if(v > 0)
@@ -37,15 +37,19 @@ double Synapse::swap()
 		int diff = std::abs(time_last - time);
 		time_last = time;
 		time = 0;
+		
 
-		if(diff <= diff_last)
+		if(diff > 0)
 		{
-			modify(9.0/8.0);
-		}
+			if(std::abs(diff - diff_last) < 2)
+			{
+				modify(5.0/4.0);
+			}
 
-		else
-		{
-			modify(7.0/8.0);
+			else
+			{
+				modify(3.0/4.0);
+			}
 		}
 		
 		diff_last = diff;

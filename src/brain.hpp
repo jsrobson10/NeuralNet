@@ -10,6 +10,7 @@ class Brain;
 #include <list>
 #include <memory>
 #include <unordered_map>
+#include <iostream>
 #include <cmath>
 
 class Brain
@@ -52,9 +53,8 @@ public:
 		{
 			for(int y = y_s; y <= pos.y + radius; y += 16)
 			{
-				int at[] = {x / 16, y / 16};
-				long h = *(long*)at;
-				auto& l = entities[h];
+				int hash[] = {x / 16, y / 16};
+				auto& l = entities[*(long*)hash];
 	
 				for(auto& e : l)
 				{

@@ -28,7 +28,7 @@ void Food::eat()
 	eaten = true;
 }
 
-void Food::update1()
+void Food::update_out()
 {
 	pos += vel;
 	vel *= Entity::M_DRAG;

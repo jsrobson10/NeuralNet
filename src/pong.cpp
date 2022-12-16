@@ -1,10 +1,11 @@
 
 #include "pong.hpp"
 #include "random.hpp"
+#include "brain.hpp"
 
 #include <iostream>
 
-Pong::Pong(Brain& brain)
+Pong::Pong()
 {
 	this->paddle_l_p = 0;
 	this->paddle_r_p = 0;
@@ -12,7 +13,6 @@ Pong::Pong(Brain& brain)
 	this->paddle_r_v = 0;
 	this->ball_p = Vector(0, 0);
 	this->ball_v = Vector(1, 0.5);
-	this->brain = &brain;
 	this->state = 0;
 	this->left = 0;
 	this->at = 0;
@@ -25,7 +25,7 @@ Pong::Pong(Brain& brain)
 
 		s_rewards[i] = std::make_shared<Sensor>();
 		s_rewards[i]->pos = Vector(x * 64 - 96, y * 64 + 96);
-		brain.add(s_rewards[i]);
+		Brain::Current->add(s_rewards[i]);
 	}
 
 	s_ball = std::make_shared<Sensor>();
@@ -35,28 +35,28 @@ Pong::Pong(Brain& brain)
 	m_paddle_l[1] = std::make_shared<Motor>();
 	m_paddle_r[0] = std::make_shared<Motor>();
 	m_paddle_r[1] = std::make_shared<Motor>();
-	m_paddle_l[0]->pos = Vector(-32 - 64, -192);
-	m_paddle_l[1]->pos = Vector(-32 - 0, -192);
-	m_paddle_r[1]->pos = Vector(32 + 0, -192);
-	m_paddle_r[0]->pos = Vector(32 + 64, -192);
+	m_paddle_l[0]->pos = Vector(-32 - 64, -192 + 0);
+	m_paddle_l[1]->pos = Vector(-32 - 0, -192 + 32);
+	m_paddle_r[1]->pos = Vector(32 + 0, -192 + 32);
+	m_paddle_r[0]->pos = Vector(32 + 64, -192 + 0);
 
-	brain.add(s_ball);
-	brain.add(s_paddle_l);
-	brain.add(s_paddle_r);
-	brain.add(m_paddle_l[0]);
-	brain.add(m_paddle_l[1]);
-	brain.add(m_paddle_r[0]);
-	brain.add(m_paddle_r[1]);
+	Brain::Current->add(s_ball);
+	Brain::Current->add(s_paddle_l);
+	Brain::Current->add(s_paddle_r);
+	Brain::Current->add(m_paddle_l[0]);
+	Brain::Current->add(m_paddle_l[1]);
+	Brain::Current->add(m_paddle_r[0]);
+	Brain::Current->add(m_paddle_r[1]);
 }
 
 double Pong::shock_nve()
 {
-	return (Random::num() < 1.0/32.0) ? 4 : 0;
+	return (Random::num() < 1.0/32.0) ? 1 : 0;
 }
 
 double Pong::shock_pve()
 {
-	double v = ((at % 16) == 0) ? 4 : 0;
+	double v = ((at % 16) == 0) ? 1 : 0;
 
 	return v;
 }
@@ -74,48 +74,53 @@ void Pong::update_game()
 	{
 		if(ball_p.x > 176 && std::abs(ball_p.y - paddle_r_p) < 32)
 		{
-			left = 128;
+			left = 64;
 			ball_v.x = -1;
 			state = 2;
 		}
 
 		else if(ball_p.x < -176 && std::abs(ball_p.y - paddle_l_p) < 32)
 		{
-			left = 128;
+			left = 64;
 			ball_v.x = 1;
 			state = 2;
 		}
 
 		else
 		{
-			ball_p = Vector(0, 0);
-			ball_v = Vector(Random::num() < 0.5 ? -1 : 1, Random::num() < 0.5 ? -0.5 : 0.5);
-			paddle_l_v = 0;
+			paddle_r_p = 0;
 			paddle_r_v = 0;
 			paddle_l_p = 0;
-			paddle_r_p = 0;
+			paddle_l_v = 0;
+			ball_p = Vector(0, 0);
+			ball_v = Vector(Random::num() < 0.5 ? -1 : 1, Random::num() < 0.5 ? -0.5 : 0.5);
 			left = 256;
 			state = 1;
 			return;
 		}
 	}
 
-	if(m_paddle_r[0]->get() > m_paddle_r[1]->get())
+	double m_r0 = m_paddle_r[0]->get();
+	double m_r1 = m_paddle_r[1]->get();
+	double m_l0 = m_paddle_l[0]->get();
+	double m_l1 = m_paddle_l[1]->get();
+
+	if(m_r0 > m_r1)
 	{
 		paddle_r_v -= 1;
 	}
 
-	else
+	else if(m_r0 < m_r1)
 	{
 		paddle_r_v += 1;
 	}
 
-	if(m_paddle_l[0]->get() > m_paddle_l[1]->get())
+	if(m_l0 > m_l1)
 	{
 		paddle_l_v -= 1;
 	}
 
-	else
+	else if(m_l0 < m_l1)
 	{
 		paddle_l_v += 1;
 	}
@@ -147,17 +152,10 @@ void Pong::update_game()
 	s_paddle_l->pos = Vector(-192, paddle_l_p - 48);
 	s_paddle_r->pos = Vector(192, paddle_r_p - 48);
 	s_ball->pos = ball_p - Vector(0, 48);
-	s_paddle_l->set(shock_pve());
-	s_paddle_r->set(shock_pve());
-	s_ball->set(shock_pve());
 }
 
 void Pong::update_nve()
 {
-	s_ball->set(0);
-	s_paddle_l->set(shock_nve());
-	s_paddle_r->set(shock_nve());
-
 	for(auto& s : s_rewards)
 	{
 		s->set(shock_nve());
@@ -188,6 +186,10 @@ void Pong::update()
 	{
 		s->set(0);
 	}
+
+	s_paddle_l->set(shock_pve());
+	s_paddle_r->set(shock_pve());
+	s_ball->set(shock_pve());
 
 	switch(state)
 	{

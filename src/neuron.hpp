@@ -7,21 +7,15 @@ class Neuron;
 #include "brain.hpp"
 #include "synapse.hpp"
 #include "entity.hpp"
+#include "taker.hpp"
+#include "giver.hpp"
 
 #include <memory>
 #include <list>
 
-class Neuron : public Entity
+class Neuron : public Entity, public Taker, public Giver
 {
 private:
-
-	struct SynapseItem
-	{
-		SynapseItem(std::shared_ptr<Synapse> synapse, std::weak_ptr<Neuron> neuron) : synapse(synapse), neuron(neuron) {};
-		
-		std::shared_ptr<Synapse> synapse;
-		std::weak_ptr<Neuron> neuron;
-	};
 
 	Brain* host;
 	unsigned char state;
@@ -31,14 +25,15 @@ private:
 	int time_last;
 	int diff_last;
 	
-	Vector vel;
 	Vector vel_out;
-	std::list<SynapseItem> s_in;
-	std::list<SynapseItem> s_out;
+	std::list<Giver::Item> s_giver;
+	std::list<Taker::Item> s_taker;
 
 	void update_entities();
 	void update_synapse();
 	void create_synapse();
+	void create_synapse_next();
+	void create_synapse_back();
 	void on_active();
 	void split();
 
@@ -52,8 +47,13 @@ public:
 	Neuron(Brain* host);
 	Neuron(Brain* host, Neuron* parent);
 
-	void update1();
-	void update2();
+	std::shared_ptr<Taker> get_taker_self();
+	std::shared_ptr<Giver> get_giver_self();
+	void reg_taker(std::shared_ptr<Synapse> synapse, std::weak_ptr<Taker> taker);
+	void reg_giver(std::shared_ptr<Synapse> synapse, std::weak_ptr<Giver> giver);
+	void give(double val);
+	void update_in();
+	void update_out();
 	void render();
 	bool alive();
 };

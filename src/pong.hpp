@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include "brain.hpp"
 #include "sensor.hpp"
 #include "motor.hpp"
 
@@ -11,7 +10,6 @@ class Pong
 {
 private:
 	
-	Brain* brain;
 	std::shared_ptr<Sensor> s_paddle_l;
 	std::shared_ptr<Sensor> s_paddle_r;
 	std::shared_ptr<Sensor> s_ball;
@@ -36,7 +34,7 @@ private:
 
 public:
 	
-	Pong(Brain& brain);
+	Pong();
 	void update();
 
 };

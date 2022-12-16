@@ -1,17 +1,12 @@
 
 #include "entity.hpp"
 
-void Entity::update1()
+void Entity::update_in()
 {
 
 }
 
-void Entity::update2()
-{
-
-}
-
-void Entity::render()
+void Entity::update_out()
 {
 
 }
@@ -19,5 +14,10 @@ void Entity::render()
 bool Entity::alive()
 {
 	return true;
+}
+
+void Entity::render()
+{
+
 }
 

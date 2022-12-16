@@ -13,13 +13,11 @@ private:
 	
 public:
 
-	Vector vel;
-
 	Food();
 	Food(double radius);
 
 	void render();
-	void update1();
+	void update_out();
 	bool alive();
 	void eat();
 };
